@@ -1,0 +1,43 @@
+name: Build debug APK
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show repo layout
+        run: find . -maxdepth 3 -not -path './.git*' | sort
+
+      - name: Locate the Gradle project
+        id: find
+        run: |
+          GRADLEW=$(find "$GITHUB_WORKSPACE" -type f -name gradlew -not -path '*/.git/*' | head -1)
+          if [ -z "$GRADLEW" ]; then
+            echo "::error::No gradlew file found in the repository."
+            exit 1
+          fi
+          echo "dir=$(dirname "$GRADLEW")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: |
+          cd "${{ steps.find.outputs.dir }}"
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyShell-debug-apk
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
